@@ -1,0 +1,136 @@
+import base64
+import secrets
+import getpass
+import sys
+from typing import cast
+
+from cryptography.hazmat.primitives import serialization, hashes
+from cryptography.hazmat.primitives.asymmetric import ec
+from cryptography.hazmat.backends import default_backend
+from cryptography.hazmat.primitives.kdf.hkdf import HKDF
+from cryptography.hazmat.primitives.ciphers.aead import AESGCM
+
+def encrypt(nonce, buf:bytes, public_key_base64, private_key_base64):
+    # Decode public key from base64
+    public_key = serialization.load_pem_public_key(public_key_base64, backend=default_backend())
+
+    # Decode private key from base64
+    private_key = serialization.load_pem_private_key(private_key_base64, password=None, backend=default_backend())
+
+    public_key = cast(ec.EllipticCurvePublicKey, public_key)
+    private_key = cast(ec.EllipticCurvePrivateKey, private_key)
+
+    # Generate a shared secret using ECDH
+    shared_key = private_key.exchange(ec.ECDH(), public_key)
+
+    # Derive a symmetric key from the shared secret
+    derived_key = HKDF(
+        algorithm=hashes.SHA256(),
+        length=32,
+        salt=None,
+        info=b'ECC example',
+        backend=default_backend()
+    ).derive(shared_key)
+
+    # Encrypt the message with AES-GCM
+    aesgcm = AESGCM(derived_key)
+    # nonce = secrets.token_bytes(12)
+
+    ciphertext = aesgcm.encrypt(nonce, buf, None)
+
+    # Encode the ciphertext as Base64
+    return nonce, ciphertext
+
+def encrypt_string(message, public_key_base64, private_key_base64):
+    # Decode the ciphertext from Base64
+    nonce,ciphertext = encrypt(message.encode(), public_key_base64, private_key_base64)
+    return base64.b64encode(nonce) + base64.b64encode(ciphertext)
+
+def decrypt(ciphertext, nonce, public_key_base64, private_key_base64):
+    # Decode public key from base64
+    public_key = serialization.load_pem_public_key(public_key_base64, backend=default_backend())
+
+    # Decode private key from base64
+    private_key = serialization.load_pem_private_key(private_key_base64, password=None, backend=default_backend())
+
+    public_key = cast(ec.EllipticCurvePublicKey, public_key)
+    private_key = cast(ec.EllipticCurvePrivateKey, private_key)
+
+    # Generate a shared secret using ECDH
+    shared_key = private_key.exchange(ec.ECDH(), public_key)
+
+    # Derive a symmetric key from the shared secret
+    derived_key = HKDF(
+        algorithm=hashes.SHA256(),
+        length=32,
+        salt=None,
+        info=b'ECC example',
+        backend=default_backend()
+    ).derive(shared_key)
+
+    # Decrypt the ciphertext with AES-GCM
+    aesgcm = AESGCM(derived_key)
+    plaintext = aesgcm.decrypt(nonce, ciphertext, None)
+    return plaintext
+
+def decrypt_string(message, public_key_base64, private_key_base64):
+    nonce = base64.b64decode(message[0:16])
+    ciphertext = base64.b64decode(message[16:])
+    return decrypt(ciphertext, nonce, public_key_base64, private_key_base64).decode()
+
+
+def main():
+    nonce = b'\x84\xc33J\x18\x8d\xf9W\x9e\xdes\xa3'
+    encrypted_admin_private_key_base64 = b"\xb6{~%J\x80\x93cz\xdc\xa9/\x8b\xf3-\xcf\xe8\xe4sP\x80\xb28\xe4a\xba#\xe2\x14\n~\xee^\xd6\xad\xaa\x9drJ_\xd2N|\x10\xee}\x90G\x81\x03\x9e9&\xc0.\xa0[\xefM\xa3\xafP\x92\xab\x13\xa6\xca\xef^\xe7\x9c\x0b:\x1d\xbe\xff\xee\xcc~\xefa\xd6(\xa3\xf7\xb9P$j\xd3`H}\x99\x8b\xf1h\x1b|\xf4\xe8\x83 \xe2\xa6\xa0?'\xe6,\x82\xdb\x99A)\xf1\xee+\x1d\x91\xdd\x1b\xef\xf6\xfd\x17\x97V\xb1uO\x96\x9e\xc1\xd6\xa2k\x95\xcf\xea\xcae\x96X\x01\x94\x87\x1e\x9b\xfe\xea\x1b\xc6\xd3r\xb5\xe8f!u\n\xddX\x06{>W\xf9\t\xc5U\x97!j\xa2\xca\xe1\x01\x1b\xee\x90\x9f\x90\xa9\xca\xad\xe4\x9e\xdez\xe0\xc1\t\xa2J\x8ehJ\xdb\xc8\x8b\xf0\x10\x86\xe9\x06\x11\xc4\x8a0\xd4\x18\xec\xfbo\xdd\xab\xb1\xabB\xe2Z\x87\xc1\xeb\xd0\xe1\xe6i\xa0\xa5N\x99\x7f\x05f6j}b\xd6\xd5ha\x07\x94|U@}@j\xed\xa4\xd1\xbc\xab"
+    # encrypted_admin_public_key_base64 = b"\xb6{~%J\x80\x93cz\xdc\xa9/\x8c\xf87\xc7\xff\x81\x18^\x9c\xc68\xe4a\xba\x04\xa5\x1f(N\xe3h\xe8\xa0\xa0\xbfjNb\xfa\x07N\x16\xeci\xed5\xaf>\x92\x04\x0f\xb3\x1b\xa6Y\xc1=\xcb\x89f\x92\x90\t\x9b\xb6\xfaQ\xa9\xbd\x10M{\xae\xfb\xdb\x84\t\xc7_\xdb>\xf9\xd5\xbar3y\xda$\x14\x0e\x9f\xd7\xff\x10 ]\xad\xb5\x90\x15\xa3\xba\x9f\x0c4\xebr\xa0\x94\xbac\x1f\xad\xe1s\r\xb7\xc3!\xc5\xef\xfb\x13\x9c0\x9dy;\x8d\xb9\xe5\xd1\xa9d\xdf\xeb\x99\xc7\x12\x91&Y\xcf\xf9Y\x84\x97\xe5e\xfe\xb1\x10\xb7\x8eA,m)\xcaM\x03\x16\x03\\\xd3O\xcfe\x87a\x00\xea\x81\xa7Qb\x12\xca@\xfb\xe1w<'\xbd.\xf4\x0bNa\xf4"
+    # encrypted_user_private_key_base64 = b"\xb6{~%J\x80\x93cz\xdc\xa9/\x8b\xf3-\xcf\xe8\xe4sP\x80\xb28\xe4a\xba#\xe2\x14\n~\xee^\xd6\xad\xaa\x9drJ_\xd2N|\x10\xee}\x90G\x81\x03\x9e9&\xc0.\xa0[\xefM\xa3\xafP\x92\xab\x13\xa6\xca\xef^\xe7\x9c\x0b:\x1d\xbe\xff\xfd\x87\x1e\xdae\xe89\xdd\xfb\xdff7Y\xff0}}\x93\x89\x97:`\x7f\xcc\xd3\xa7c\x8a\x80\x827\x0e\xd7u\x96\xee\xb0^\x0e\x96\xef<2\xb7\xdd\x1b\xef\xf6\xfd\x17\x97V\xaab-\xac\xbc\xef\xa6\x94Y\xb0\x8b\xca\xe6q\xe8'9\xc9\xa3m\x90\xf5\xaa=\x92\xa4l\xf8\xebf1\x14)\x8f)%2;^\xf1\x07\xe7x\xa6%b\x9f\x9d\xec>/\xeb\x9d\xb0\xb2\xb3\xc3\xee\xf5\xa6\xdfr\xe8\x9e1\xa1V\xcefu\xab\xd1\xb0\x86\x04\xaf\xd9\x04D\xbc\xa1\x14\xdd\x15\xea\x87o\xdd\xab\xb1\xabB\xe2Z\x87\xc1\xeb\xd0\xe1\xe6i\xa0\xa5N\x99\x7f\x05f6j}b\xd6\xa2\xf6\xc9ir\xdd.\xfd4\x92zg\xde\x11r\x1f"
+    encrypted_user_public_key_base64 = b"\xb6{~%J\x80\x93cz\xdc\xa9/\x8c\xf87\xc7\xff\x81\x18^\x9c\xc68\xe4a\xba\x04\xa5\x1f(N\xe3h\xe8\xa0\xa0\xbfjNb\xfa\x07N\x16\xeci\xed5\xaf>\x92\x04\x0f\xb3\x1b\xa6Y\xc1=\xcb\x89f\x92\x8d\x1a\x97\x80\xceW\xe7\xb4\x1fJ9\xdd\xa9\xf8\x9a9\xeda\xd6\x19\xd1\x9a\xc2&)<\xf5\x15\x14\x0f\xc6\xcd\xd1l-U\xca\xb4\xa4!\xa2\x95\x95]'\xe9p\xf7\xf9\xceX2\x97\xd0\x01F\x9f\xec\x1f\xf7\x89\x8c\x11\x98P\xb0j4\xd1\xd3\x88\xaf\x93f\xad\xef\xc7\xfdE\xa7[$\xe2\x83K\xb0\x87\xe5e\xfe\xb1\x10\xb7\x8eA,m)\xcaM\x03\x16\x03\\\xd3O\xcfe\x87a\x00\xea\x81\xa7Q\xf7P\xb8d\xa5\x12<\x99^\xb3\xcf'\xac\xd8\xf6b"
+
+    derived_key = HKDF(
+        algorithm=hashes.SHA256(),
+        length=32,
+        salt=None,
+        info=b'ACV-API',
+        backend=default_backend()
+    ).derive(b'ACV-API')
+
+
+    # Decrypt the ciphertext with AES-GCM
+    aesgcm = AESGCM(derived_key)
+
+    admin_private_key_base64 = aesgcm.decrypt(nonce, encrypted_admin_private_key_base64, None)
+    # admin_public_key_base64 = aesgcm.decrypt(nonce, encrypted_admin_public_key_base64, None)
+    # user_private_key_base64 = aesgcm.decrypt(nonce, encrypted_user_private_key_base64, None)
+    user_public_key_base64 = aesgcm.decrypt(nonce, encrypted_user_public_key_base64, None)
+
+    # Check if there are command-line arguments
+    if len(sys.argv) > 1:
+        file_name = sys.argv[1]
+        # Read the file into a buffer
+        with open(file_name, 'rb') as file:
+            buffer = file.read()
+
+        # Encrypt the buffer
+        nonce,encrypted_buffer = encrypt(nonce, buffer,user_public_key_base64, admin_private_key_base64)
+
+        # Write the encrypted buffer to another file
+        with open(f'{file_name}.encrypt', 'wb') as file:
+            file.write(nonce)
+            file.write(encrypted_buffer)
+            file.close()
+
+        # with open(f'{file_name}.enc', 'rb') as file:
+        #     file_buffer = file.read()
+        #     file.close()
+        #     encrypted_buffer = file_buffer[12:]
+        #     nonce = file_buffer[:12]
+
+        #     buffer = decrypt(encrypted_buffer, nonce, admin_public_key_base64, user_private_key_base64)
+
+        #     with open(f'{file_name}.dec', 'wb') as file:
+        #         file.write(buffer)
+        #         file.close()
+
+
+if __name__ == "__main__":
+    main()

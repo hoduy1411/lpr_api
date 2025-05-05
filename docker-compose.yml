@@ -1,0 +1,16 @@
+version: "3.8"
+
+services:
+  app:
+    image: api_lp_ocr:latest
+    container_name: api_lp_ocr
+    build: .
+    ports:
+      - "8001:8001"
+    volumes:
+      - ./cfg:/code/cfg
+      - ${SAVE_PATH}:/code/data
+      - ./logs:/code/logs
+    restart: always
+    env_file:
+      - .env

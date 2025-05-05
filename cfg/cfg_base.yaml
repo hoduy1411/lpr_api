@@ -1,0 +1,20 @@
+## Set device type to 'cpu' or '0' (cuda) for inference
+DEVICE_TYPE: 'cpu'
+
+SAVE_PATH:
+
+##  Lp detector 
+LP_DETECTOR:
+  # weight: app/model/lp_detector/best_lp_15082024_416_lr0.1.pt
+  weight: app/model/lp_detector/best_lp_15082024_416_lr0.1.pt.encrypt
+  conf_thres: 0.55
+  iou_thres: 0.45
+  img_size: 416
+
+##  Lp recognition
+LP_RECOGNITION:
+  # weight: app/model/lp_recognition/lp_recognition_size256_20241211.pt
+  weight: app/model/lp_recognition/lp_recognition_size256_20241211.pt.encrypt
+  conf_thres: 0.45
+  iou_thres: 0.25
+  img_size: 256

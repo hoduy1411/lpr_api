@@ -1,0 +1,1 @@
+docker save -o api_lp_ocr.tar api_lp_ocr:latest
