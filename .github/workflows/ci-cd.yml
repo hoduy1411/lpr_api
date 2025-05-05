@@ -24,7 +24,7 @@ jobs:
       env:
         SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}  # SSH private key trong GitHub Secrets
         LOCAL_UBUNTU_USER: "codespace"  # Username trên máy Ubuntu của bạn
-        LOCAL_UBUNTU_IP: "10.0.1.163"  # Địa chỉ IP local của máy Ubuntu (127.0.0.1 nếu là máy local)
+        LOCAL_UBUNTU_IP: "127.0.0.1"  # Địa chỉ IP local của máy Ubuntu (127.0.0.1 nếu là máy local)
       run: |
         echo "$SSH_PRIVATE_KEY" > private_key.pem
         chmod 600 private_key.pem
