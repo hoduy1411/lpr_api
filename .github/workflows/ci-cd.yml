@@ -16,9 +16,9 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v2  # Checkout mã nguồn
 
-    - name: Build Docker image
-      run: |
-        docker build -t api_lp_ocr:latest .  # Build Docker image từ Dockerfile trong repo
+    # - name: Build Docker image
+    #   run: |
+    #     docker build -t api_lp_ocr:latest .  # Build Docker image từ Dockerfile trong repo
 
     - name: Deploy to local Ubuntu machine
       env:
